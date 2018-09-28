@@ -1,0 +1,198 @@
+#########################################################################
+version: '3.3'
+services:
+######################### [   ZOOKEEPER_1   ] ###########################
+  zk-1:
+    container_name: "zookeeper-1"
+    image: confluentinc/cp-zookeeper:latest
+    expose:
+      - "2181"
+    ports:
+      - "12181:2181"
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: 0.0.0.0:22888:23888;zk2:32888:33888;zk3:42888:43888
+    volumes:
+      - "$HOME/volumes/zk1:/var/lib/zookeeper"
+
+    networks:
+      default:
+        aliases:
+        - zk1
+######################### [   ZOOKEEPER_2   ] ###########################
+  zk-2:
+    container_name: "zookeeper-2"
+    image: confluentinc/cp-zookeeper:latest
+    expose:
+      - "2181"
+    ports:
+      - "22181:2181"
+    environment:
+      ZOOKEEPER_SERVER_ID: 2
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zk1:22888:23888;0.0.0.0:32888:33888;zk3:42888:43888
+    volumes:
+      - "$HOME/volumes/zk2:/var/lib/zookeeper"
+
+    networks:
+      default:
+        aliases:
+        - zk2
+######################### [   ZOOKEEPER_3   ] ###########################
+  zk-3:
+    container_name: "zookeeper-3"
+    image: confluentinc/cp-zookeeper:latest
+    expose:
+      - "2181"
+    ports:
+      - "32181:2181"
+    environment:
+      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zk1:22888:23888;zk2:32888:33888;0.0.0.0:42888:43888
+    volumes:
+      - "$HOME/volumes/zk3:/var/lib/zookeeper"
+
+    networks:
+      default:
+        aliases:
+        - zk3
+######################## [     KAFKA_CL-1     ] ##########################
+  kafka-1:
+    container_name: "kafka-1"
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zk-1
+      - zk-2
+      - zk-3
+    expose:
+      - "9092"
+    ports:
+      - "19092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zk1:2181,zk2:2181,zk3:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
+    volumes:
+      - "$HOME/volumes/kafka1:/var/lib/kafka"
+
+    networks:
+      default:
+        aliases:
+        - kafka1
+######################## [     KAFKA_CL-2     ] ##########################
+  kafka-2:
+    container_name: "kafka-2"
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zk-1
+      - zk-2
+      - zk-3
+    expose:
+      - "9092"
+    ports:
+      - "29092:9092"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zk1:2181,zk2:2181,zk3:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
+    volumes:
+      - "$HOME/volumes/kafka2:/var/lib/kafka"
+
+    networks:
+      default:
+        aliases:
+        - kafka2
+######################## [     KAFKA_CL-3     ] ##########################
+  kafka-3:
+    container_name: "kafka-3"
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zk-1
+      - zk-2
+      - zk-3
+    expose:
+      - "9092"
+    ports:
+      - "39092:9092"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zk1:2181,zk2:2181,zk3:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
+    volumes:
+      - "$HOME/volumes/kafka3:/var/lib/kafka"
+
+    networks:
+      default:
+        aliases:
+        - kafka3
+###################### [     SCHEMA-REGISTRY     ] #######################
+  schema-registry:
+    container_name: "schema-registry"
+    image: confluentinc/cp-schema-registry
+    restart: always
+    expose:
+      - "8081"
+    ports:
+      - "48081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zk1:2181,zk2:2181,zk3:2181
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+
+    networks:
+      default:
+        aliases:
+        - schema-registry
+###################### [     KAFKA-REST-PROXY    ] #######################
+  kafka-rest-proxy:
+    container_name: "kafka-rest-proxy"
+    image: confluentinc/cp-kafka-rest
+    restart: always
+    expose:
+      - "8082"
+    ports:
+      - "48082:8082"
+    environment:
+      KAFKA_REST_ID: 1
+      KAFKA_REST_ZOOKEEPER_CONNECT: zk1:2181,zk2:2181,zk3:2181
+      KAFKA_REST_LISTENERS: http://kafka-rest-proxy:8082
+      KAFKA_REST_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KAFKA_REST_HOST_NAME: kafka-rest-proxy
+
+    networks:
+      default:
+        aliases:
+        - kafka-rest-proxy
+###################### [     KAFKA-TOPICS-UI    ] ########################
+  kafka-topics-ui:
+    container_name: "kafka-topics-ui"
+    image: landoop/kafka-topics-ui
+    restart: always
+    expose:
+      - "8080"
+    ports:
+      - "48080:8000"
+    environment:
+      KAFKA_REST_PROXY_URL: http://kafka-rest-proxy:8082
+      PROXY: "true"
+
+    networks:
+      default:
+        aliases:
+          - kafka-topics-ui
+###################### [     SHARED NETWORK     ] ########################
+networks:
+ default:
+  external:
+   name: default-net
+#########################################################################

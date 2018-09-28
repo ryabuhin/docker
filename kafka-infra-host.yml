@@ -1,0 +1,115 @@
+#########################################################################
+version: '3.3'                                                            
+services: 
+######################### [   ZOOKEEPER_1   ] ###########################
+  zk-1:
+    container_name: "zookeeper-1"
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 22181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: 0.0.0.0:22888:23888;${HOST_ADDRESS}:32888:33888;${HOST_ADDRESS}:42888:43888
+
+    network_mode: host
+######################### [   ZOOKEEPER_2   ] ###########################
+  zk-2:
+    container_name: "zookeeper-2"
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 2
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: ${HOST_ADDRESS}:22888:23888;0.0.0.0:32888:33888;${HOST_ADDRESS}:42888:43888
+    
+    network_mode: host
+######################### [   ZOOKEEPER_3   ] ###########################
+  zk-3:
+    container_name: "zookeeper-3"
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_CLIENT_PORT: 42181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: ${HOST_ADDRESS}:22888:23888;${HOST_ADDRESS}:32888:33888;0.0.0.0:42888:43888
+    
+    network_mode: host
+######################## [     KAFKA_CL-1     ] ##########################
+  kafka-1:
+    container_name: "kafka-1"
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zk-1
+      - zk-2
+      - zk-3
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: ${HOST_ADDRESS}:22181,${HOST_ADDRESS}:32181,${HOST_ADDRESS}:42181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${HOST_ADDRESS}:19092
+
+    network_mode: host
+######################## [     KAFKA_CL-2     ] ##########################
+  kafka-2:
+    container_name: "kafka-2"
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zk-1
+      - zk-2
+      - zk-3
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: ${HOST_ADDRESS}:22181,${HOST_ADDRESS}:32181,${HOST_ADDRESS}:42181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${HOST_ADDRESS}:29092
+
+    network_mode: host
+######################## [     KAFKA_CL-3     ] ##########################
+  kafka-3:
+    container_name: "kafka-3"
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zk-1
+      - zk-2
+      - zk-3
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: ${HOST_ADDRESS}:22181,${HOST_ADDRESS}:32181,${HOST_ADDRESS}:42181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${HOST_ADDRESS}:39092
+
+    network_mode: host
+###################### [     SCHEMA-REGISTRY     ] #######################
+  schema-registry:
+    container_name: "schema-registry"
+    image: confluentinc/cp-schema-registry
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: ${HOST_ADDRESS}:22181,${HOST_ADDRESS}:32181,${HOST_ADDRESS}:42181
+      SCHEMA_REGISTRY_HOST_NAME: localhost
+
+    network_mode: host
+###################### [     KAFKA-REST-PROXY    ] #######################
+  kafka-rest-proxy:
+    container_name: "kafka-rest-proxy"
+    image: confluentinc/cp-kafka-rest
+    environment:
+      KAFKA_REST_ID: 1
+      KAFKA_REST_ZOOKEEPER_CONNECT: ${HOST_ADDRESS}:22181,${HOST_ADDRESS}:32181,${HOST_ADDRESS}:42181
+      KAFKA_REST_LISTENERS: http://${HOST_ADDRESS}:8082
+      KAFKA_REST_SCHEMA_REGISTRY_URL: http://${HOST_ADDRESS}:8081
+      KAFKA_REST_HOST_NAME: localhost
+
+    network_mode: host
+###################### [     KAFKA-TOPICS-UI    ] ########################
+  kafka-topics-ui:
+    container_name: "kafka-topics-ui"
+    image: landoop/kafka-topics-ui
+    environment:
+      KAFKA_REST_PROXY_URL: http://${HOST_ADDRESS}:8082
+      PROXY: "true"
+
+    network_mode: host
+#########################################################################
